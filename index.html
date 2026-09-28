@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Turbo Rush</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1a1040;--road:#2a2748;--yellow:#ffd21f;--pink:#ff2e7e;--cyan:#22d3ee;--ink:#fff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:'Nunito',system-ui,sans-serif;touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;background:linear-gradient(180deg,rgba(26,16,64,.55),rgba(26,16,64,.92));z-index:5;text-align:center}
+.hidden{display:none!important}
+.ad{position:absolute;left:50%;bottom:calc(10px + env(safe-area-inset-bottom));transform:translateX(-50%);line-height:0}
+h1,h2{font-family:'Bungee',Impact,sans-serif;margin:0;font-weight:400;letter-spacing:1px}
+h1{font-size:clamp(44px,14vw,84px);line-height:.9;color:var(--yellow);text-shadow:4px 4px 0 var(--pink),8px 8px 0 rgba(0,0,0,.35);transform:rotate(-4deg);margin-bottom:22px}
+h2{font-size:34px;color:var(--cyan)}
+.btn{font-family:'Bungee',Impact,sans-serif;font-size:20px;width:min(280px,80vw);padding:16px;border:0;border-radius:16px;color:#1a1040;background:var(--cyan);box-shadow:0 6px 0 #0e8ea3;cursor:pointer}
+.btn:active{transform:translateY(5px);box-shadow:0 1px 0 #0e8ea3}
+.btn.play{font-size:30px;padding:20px;background:var(--yellow);box-shadow:0 7px 0 #b58f00}
+.btn.play:active{box-shadow:0 2px 0 #b58f00}
+.btn.alt{background:#fff;box-shadow:0 6px 0 #9aa}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:min(320px,86vw);font-size:19px;font-weight:800}
+.seg{display:flex;border-radius:12px;overflow:hidden;border:2px solid var(--cyan)}
+.seg button{font:inherit;font-size:15px;padding:9px 12px;border:0;background:transparent;color:#fff}
+.seg button.on{background:var(--cyan);color:#1a1040}
+p{max-width:320px;line-height:1.5;margin:0;font-size:17px}
+.best{font-weight:800;color:var(--yellow);font-size:18px}
+#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 16px 0;z-index:3;font-family:'Bungee',Impact,sans-serif;font-size:22px;pointer-events:none;text-shadow:2px 2px 0 rgba(0,0,0,.5)}
+#big{font-size:64px;color:var(--yellow)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- ADSTERRA: paste your banner code between the template tags below (exactly as Adsterra gives it).
+     Set data-w / data-h to the banner size you chose (for example 320x50 or 300x250).
+     Ads show on the menu and game over screens only, never during a race. -->
+<template id="adTpl" data-w="320" data-h="50">
+  <script>
+    atOptions = {
+      'key' : '4851511fb15b0750da68668d7b5c510f',
+      'format' : 'iframe',
+      'height' : 50,
+      'width' : 320,
+      'params' : {}
+    };
+  </script>
+  <script src="https://www.highrevenueformat.com/4851511fb15b0750da68668d7b5c510f/invoke.js"></script>
+</template>
+
+<div id="hud" class="hidden"><span><span id="score">0</span><span id="coinHud" style="color:var(--yellow);margin-left:12px">● 0</span></span></div>
+
+<div id="menu" class="screen">
+  <h1>TURBO<br>RUSH</h1>
+  <div class="best" id="menuBest"></div>
+  <button class="btn play" id="bPlay">PLAY</button>
+  <button class="btn" id="bSet">Settings</button>
+  <button class="btn" id="bAbout">About</button>
+  <div class="ad"></div>
+</div>
+
+<div id="settings" class="screen hidden">
+  <h2>Settings</h2>
+  <div class="row">Sound <div class="seg" data-key="sound"><button data-v="1">On</button><button data-v="0">Off</button></div></div>
+  <div class="row">Speed <div class="seg" data-key="diff"><button data-v="0.8">Easy</button><button data-v="1">Normal</button><button data-v="1.3">Hard</button></div></div>
+  <div class="row">Vibrate <div class="seg" data-key="vib"><button data-v="1">On</button><button data-v="0">Off</button></div></div>
+  <button class="btn alt" data-back>Back</button>
+</div>
+
+<div id="about" class="screen hidden">
+  <h2>How to play</h2>
+  <p>Tap the left or right side of the screen, or swipe, to change lane. Dodge the traffic. The longer you last, the faster it gets.</p>
+  <p>Desktop: arrow keys or A / D.</p>
+  <button class="btn alt" data-back>Back</button>
+</div>
+
+<div id="over" class="screen hidden">
+  <h2 style="color:var(--pink)">Crashed!</h2>
+  <div id="big">0</div>
+  <div class="best" id="overCoins"></div>
+    <button class="btn play" id="bAgain">Race again</button>
+  <button class="btn" id="bMenu">Menu</button>
+  <div class="ad"></div>
+</div>
+
+<div id="paused" class="screen hidden">
+  <h2>Paused</h2>
+  <button class="btn play" id="bResume">Resume</button>
+  <button class="btn" id="bQuit">Menu</button>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const cv = $('c'), ctx = cv.getContext('2d');
+  let W, H, DPR, roadW, laneW, roadX, carW, carH;
+
+  // ---------- settings ----------
+  const defaults = { sound: '1', diff: '1', vib: '1' };
+  let cfg = { ...defaults }, best = 0, bank = 0;
+  try { Object.assign(cfg, JSON.parse(localStorage.getItem('turbo-cfg') || '{}')); best = +localStorage.getItem('turbo-best') || 0; bank = +localStorage.getItem('turbo-coins') || 0; } catch (e) {}
+  const save = () => { try { localStorage.setItem('turbo-cfg', JSON.stringify(cfg)); localStorage.setItem('turbo-best', best); localStorage.setItem('turbo-coins', bank); } catch (e) {} };
+
+  function showSeg() {
+    document.querySelectorAll('.seg').forEach(s => s.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === cfg[s.dataset.key])));
+  }
+  document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { cfg[b.parentNode.dataset.key] = b.dataset.v; save(); showSeg(); beep(500, .06); });
+
+  // ---------- sound ----------
+  let ac;
+  function beep(f, d, type = 'square') {
+    if (cfg.sound !== '1') return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type; o.frequency.value = f; g.gain.value = .07;
+      g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + d);
+      o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + d);
+    } catch (e) {}
+  }
+
+  // ---------- engine + ambience ----------
+  let eng = null;
+  function engineStart() {
+    if (cfg.sound !== '1' || eng) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
+      const a = ac, out = a.createGain(); out.gain.value = 0; out.connect(a.destination);
+      const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700; lp.connect(out);
+      const o1 = a.createOscillator(), o2 = a.createOscillator(), o3 = a.createOscillator();
+      o1.type = 'sawtooth'; o2.type = 'square'; o3.type = 'sawtooth';
+      const g1 = a.createGain(), g2 = a.createGain(), g3 = a.createGain();
+      g1.gain.value = .5; g2.gain.value = .2; g3.gain.value = .12;
+      o1.connect(g1); g1.connect(lp); o2.connect(g2); g2.connect(lp); o3.connect(g3); g3.connect(lp);
+      // ambience: looping wind / crowd noise
+      const buf = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const n = a.createBufferSource(); n.buffer = buf; n.loop = true;
+      const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 500; bp.Q.value = .6;
+      const ng = a.createGain(); ng.gain.value = 0;
+      n.connect(bp); bp.connect(ng); ng.connect(a.destination);
+      o1.start(); o2.start(); o3.start(); n.start();
+      out.gain.setTargetAtTime(.08, a.currentTime, .15);
+      ng.gain.setTargetAtTime(.03, a.currentTime, .3);
+      eng = { a, o1, o2, o3, lp, out, n, bp, ng };
+    } catch (e) { eng = null; }
+  }
+  function engineUpdate(sp) {
+    if (!eng) return;
+    const r = Math.min(1, Math.max(0, (sp - 300) / 1500)), t = eng.a.currentTime, f = 65 + r * 250;
+    eng.o1.frequency.setTargetAtTime(f, t, .08);
+    eng.o2.frequency.setTargetAtTime(f * 2.01, t, .08);
+    eng.o3.frequency.setTargetAtTime(f * .5, t, .08);
+    eng.lp.frequency.setTargetAtTime(500 + r * 1800, t, .1);
+    eng.bp.frequency.setTargetAtTime(400 + r * 1200, t, .2);
+    eng.ng.gain.setTargetAtTime(.03 + r * .07, t, .2);
+  }
+  function engineStop() {
+    if (!eng) return;
+    const e = eng; eng = null;
+    try {
+      e.out.gain.setTargetAtTime(0, e.a.currentTime, .08); e.ng.gain.setTargetAtTime(0, e.a.currentTime, .08);
+      setTimeout(() => { try { e.o1.stop(); e.o2.stop(); e.o3.stop(); e.n.stop(); } catch (_) {} }, 500);
+    } catch (_) {}
+  }
+
+  // ---------- layout ----------
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    roadW = Math.min(W * .92, 420); laneW = roadW / 3; roadX = (W - roadW) / 2;
+    carW = laneW * .42; carH = carW * 2.3;
+  }
+  addEventListener('resize', resize); resize();
+
+  // ---------- state ----------
+  let state = 'menu', lane = 1, px = 0, enemies = [], score = 0, speed = 0, spawnT = 0, roadOff = 0, shake = 0, last = 0, pickups = [], runCoins = 0, coinT = 1;
+  const laneX = l => roadX + laneW * (l + .5);
+  const colors = ['#ff2e7e', '#22d3ee', '#a3e635', '#c084fc', '#fb923c'];
+
+  function start() {
+    lane = 1; px = laneX(1); enemies = []; score = 0; spawnT = 0; shake = 0; pickups = []; runCoins = 0; coinT = 1;
+    speed = 380 * +cfg.diff;
+    show(null); $('hud').classList.remove('hidden');
+    state = 'play'; last = performance.now(); beep(660, .12); engineStart();
+  }
+  function show(id) {
+    if (id) engineStop();
+    ['menu', 'settings', 'about', 'over', 'paused'].forEach(s => $(s).classList.toggle('hidden', s !== id));
+    if (id === 'menu') { state = 'menu'; $('hud').classList.add('hidden'); $('menuBest').textContent = 'Best: ' + best + '   ● ' + bank; }
+  }
+  function crash() {
+    if (state !== 'play') return; state = 'over'; shake = 14; engineStop(); beep(90, .5, 'sawtooth');
+    if (cfg.vib === '1' && navigator.vibrate) navigator.vibrate(200);
+    const s = Math.floor(score); if (s > best) best = s; bank += runCoins; save();
+    setTimeout(() => { $('big').textContent = s; $('overCoins').textContent = '+' + runCoins + ' coins  (total ' + bank + ')'; show('over'); $('hud').classList.add('hidden'); }, 650);
+  }
+
+  // ---------- buttons ----------
+  $('bPlay').onclick = start; $('bAgain').onclick = start;
+  $('bSet').onclick = () => { showSeg(); show('settings'); };
+  $('bAbout').onclick = () => show('about');
+  document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => show('menu'));
+  $('bMenu').onclick = () => show('menu'); $('bQuit').onclick = () => show('menu');
+  $('bResume').onclick = () => { show(null); $('hud').classList.remove('hidden'); state = 'play'; last = performance.now(); engineStart(); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') { state = 'pause'; show('paused'); } });
+
+  // ---------- input ----------
+  const move = d => { if (state === 'play') { const n = Math.max(0, Math.min(2, lane + d)); if (n !== lane) { lane = n; beep(300, .04); } } };
+  let sx = 0, sy = 0;
+  cv.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; });
+  cv.addEventListener('pointerup', e => {
+    const dx = e.clientX - sx;
+    if (Math.abs(dx) > 30) move(dx > 0 ? 1 : -1); else move(e.clientX < W / 2 ? -1 : 1);
+  });
+  addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') move(-1);
+    if (e.key === 'ArrowRight' || e.key === 'd') move(1);
+  });
+
+  // ---------- drawing ----------
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); }
+  function drawCar(cx, cy, color) {
+    ctx.save(); ctx.translate(cx, cy);
+    const w = carW, h = carH, k = '#14112b';
+    ctx.fillStyle = k; ctx.fillRect(-w * .42, -h * .24, w * .84, 4); ctx.fillRect(-w * .42, h * .27, w * .84, 4);
+    ctx.fillStyle = '#0a0a0a';
+    rr(-w * .56, -h * .33, w * .2, h * .17, 4); rr(w * .36, -h * .33, w * .2, h * .17, 4);
+    rr(-w * .58, h * .17, w * .24, h * .21, 4); rr(w * .34, h * .17, w * .24, h * .21, 4);
+    ctx.fillStyle = k; rr(-w * .5, -h * .5, w, h * .05, 3);
+    ctx.fillStyle = color; rr(-w * .5, -h * .5, w * .07, h * .07, 2); rr(w * .43, -h * .5, w * .07, h * .07, 2);
+    ctx.fillStyle = k; rr(-w * .44, h * .43, w * .88, h * .07, 3);
+    ctx.fillStyle = color; rr(-w * .46, h * .41, w * .07, h * .1, 2); rr(w * .39, h * .41, w * .07, h * .1, 2);
+    ctx.fillStyle = color; ctx.beginPath();
+    ctx.moveTo(0, -h * .47); ctx.lineTo(w * .09, -h * .3); ctx.lineTo(w * .2, -h * .12);
+    ctx.lineTo(w * .3, h * .08); ctx.lineTo(w * .2, h * .38); ctx.lineTo(w * .1, h * .43);
+    ctx.lineTo(-w * .1, h * .43); ctx.lineTo(-w * .2, h * .38); ctx.lineTo(-w * .3, h * .08);
+    ctx.lineTo(-w * .2, -h * .12); ctx.lineTo(-w * .09, -h * .3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(-w * .03, -h * .45, w * .06, h * .3); ctx.fillRect(-w * .03, h * .12, w * .06, h * .28);
+    ctx.fillStyle = k; ctx.beginPath(); ctx.ellipse(0, -h * .02, w * .13, h * .075, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, -h * .02, w * .07, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  function drawCoin(x, y, t, i) {
+    const r = laneW * .15, s = Math.max(.25, Math.abs(Math.cos(t / 260 + i)));
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, 1);
+    ctx.fillStyle = '#ffb300'; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ffe066'; ctx.beginPath(); ctx.arc(0, 0, r * .72, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  function drawRoad() {
+    ctx.fillStyle = '#12b76a'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#0e9457';
+    for (let y = -80 + (roadOff % 160); y < H; y += 160) ctx.fillRect(0, y, W, 80);
+    ctx.fillStyle = 'var(--road)'; ctx.fillStyle = '#2a2748'; ctx.fillRect(roadX, 0, roadW, H);
+    ctx.fillStyle = '#fff'; ctx.fillRect(roadX - 4, 0, 6, H); ctx.fillRect(roadX + roadW - 2, 0, 6, H);
+    ctx.fillStyle = 'rgba(255,255,255,.75)';
+    for (let l = 1; l < 3; l++) for (let y = -60 + (roadOff % 120); y < H; y += 120) ctx.fillRect(roadX + laneW * l - 3, y, 6, 60);
+    // kerbs
+    for (let y = -40 + (roadOff % 80); y < H; y += 80) { ctx.fillStyle = '#ff2e7e'; ctx.fillRect(roadX - 12, y, 8, 40); ctx.fillRect(roadX + roadW + 4, y, 8, 40); }
+  }
+
+  // ---------- loop ----------
+  function frame(t) {
+    requestAnimationFrame(frame);
+    const dt = Math.min((t - last) / 1000, .05); last = t;
+    if (state === 'play') {
+      score += speed * dt / 40;
+      speed = (380 + score * .9) * +cfg.diff;
+      roadOff += speed * dt; engineUpdate(speed);
+      px += (laneX(lane) - px) * Math.min(1, dt * 14);
+      spawnT -= dt; coinT -= dt;
+      const py = H - carH * 1.2;
+      if (spawnT <= 0) {
+        spawnT = Math.max(.85, 1.8 - score / 3000) / +cfg.diff;
+        const near = enemies.filter(e => e.y < carH * 3.2).length;
+        const free = [0, 1, 2].filter(l => !enemies.some(e => e.l === l && e.y < carH * 2.4));
+        if (near >= 2 || !free.length) spawnT = .15;
+        else enemies.push({ l: free[Math.random() * free.length | 0], y: -carH, f: .35 + Math.random() * .4, c: colors[Math.random() * colors.length | 0] });
+      }
+      if (coinT <= 0) {
+        coinT = 1.2 + Math.random() * 1.5;
+        const l = Math.random() * 3 | 0, n = 3 + (Math.random() * 3 | 0);
+        for (let i = 0; i < n; i++) pickups.push({ l, y: -30 - i * carH * .7 });
+      }
+      for (const e of enemies) e.y += speed * (1 - e.f) * dt;
+      // keep cars from driving through each other
+      for (let l = 0; l < 3; l++) {
+        const col = enemies.filter(e => e.l === l).sort((a, b) => b.y - a.y);
+        for (let i = 1; i < col.length; i++) {
+          const gap = carH * 1.25;
+          if (col[i].y > col[i - 1].y - gap) { col[i].y = col[i - 1].y - gap; col[i].f = col[i - 1].f; }
+        }
+      }
+      for (const e of enemies) if (Math.abs(laneX(e.l) - px) < carW * .8 && Math.abs(e.y - py) < carH * .85) crash();
+      for (const c of pickups) {
+        c.y += speed * dt;
+        if (Math.abs(laneX(c.l) - px) < carW * .8 && Math.abs(c.y - py) < carH * .6) { c.dead = true; runCoins++; beep(1000, .08, 'triangle'); }
+      }
+      pickups = pickups.filter(c => !c.dead && c.y < H + 40);
+      enemies = enemies.filter(e => e.y < H + carH);
+      $('score').textContent = Math.floor(score); $('coinHud').textContent = '● ' + runCoins;
+    } else if (state === 'menu') { roadOff += 300 * dt; px = laneX(1); }
+    else if (state === 'over') { shake *= .92; }
+
+    ctx.save();
+    if (shake > .5) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
+    drawRoad();
+    pickups.forEach((c, i) => drawCoin(laneX(c.l), c.y, t, i));
+    for (const e of enemies) drawCar(laneX(e.l), e.y, e.c);
+    if (state !== 'over' || shake > 1) drawCar(px || laneX(1), H - carH * 1.2, '#ffd21f');
+    ctx.restore();
+  }
+  $('menuBest').textContent = 'Best: ' + best + '   ● ' + bank;
+  // ---------- ads ----------
+  const tpl = $('adTpl');
+  if (tpl && tpl.content.querySelector('script')) {
+    const html = '<style>body{margin:0}</style>' + tpl.innerHTML.replace(/(src=["'])\/\//g, '$1https://');
+    document.querySelectorAll('.ad').forEach(el => {
+      const f = document.createElement('iframe');
+      f.width = tpl.dataset.w || 320; f.height = tpl.dataset.h || 50;
+      f.style.border = '0'; f.scrolling = 'no'; f.srcdoc = html;
+      el.appendChild(f);
+    });
+  }
+  requestAnimationFrame(t => { last = t; frame(t); });
+})();
+</script>
+</body>
+</html>
